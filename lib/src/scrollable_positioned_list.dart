@@ -403,22 +403,36 @@ class _ScrollablePositionedListState extends State<ScrollablePositionedList>
               widget.minCacheExtent,
             );
 
-  void _jumpTo({@required int index, double alignment}) {
+  void _jumpTo({int index, double offset}) {
     cancelScrollCallback?.call();
-    if (index > widget.itemCount - 1) {
-      index = widget.itemCount - 1;
-    }
-    if (_showFrontList) {
-      frontScrollController.jumpTo(0);
-      setState(() {
-        frontTarget = index;
-        frontAlignment = alignment;
-      });
+
+    final controller =
+        _showFrontList ? frontScrollController : backScrollController;
+    final lastTarget = _showFrontList ? frontTarget : backTarget;
+    // 方向
+    final direction = index > lastTarget ? 1 : -1;
+    // 更新index
+    setState(() {
+      if (lastTarget != index) {
+        if (_showFrontList) {
+          frontTarget = index;
+        } else {
+          backTarget = index;
+        }
+      }
+    });
+    // 加上偏移量offset
+    var jumpOffset = 0 + offset;
+    if (direction == -1) {
+      controller.jumpTo(jumpOffset);
     } else {
-      backScrollController.jumpTo(0);
-      setState(() {
-        backTarget = index;
-        backAlignment = alignment;
+      controller.jumpTo(jumpOffset);
+      // 渲染后如果发现溢出，马上修正
+      WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+        var offset = min(jumpOffset, controller.position.maxScrollExtent);
+        if (controller.offset != offset) {
+          controller.jumpTo(offset);
+        }
       });
     }
   }
